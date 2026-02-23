@@ -112,8 +112,8 @@ jobs:
         if: steps.detect.outputs.languages == ''
         run: echo "No supported languages detected. Skipping CodeQL."
 
+  # -------------------------
     # -------------------------
-   # -------------------------
   # DEPENDENCY SCAN - DEPENDABOT
   # -------------------------
   dependency-scan:
@@ -125,19 +125,19 @@ jobs:
       security-events: read
 
     steps:
-    - name: Fetch Code Scanning Alerts
-    run: |
-        gh api \
-          repos/${{ github.repository }}/code-scanning/alerts \
-          --jq '.' > dependency-report.json
+      - name: Fetch Code Scanning Alerts
+        run: |
+          gh api \
+            repos/${{ github.repository }}/code-scanning/alerts \
+            --jq '.' > dependency-report.json
         env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Upload Dependency Report
+      - name: Upload Dependency Report
         uses: actions/upload-artifact@v4
         with:
-        name: dependency-report
-        path: dependency-report.json
+          name: dependency-report
+          path: dependency-report.json
   # -------------------------
   # NORMALIZATION JOB
   # -------------------------
