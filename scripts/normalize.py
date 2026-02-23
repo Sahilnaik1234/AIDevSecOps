@@ -32,8 +32,11 @@ def normalize_severity(sev):
 
 
 # 🔐 Process Gitleaks
-if os.path.exists("gitleaks-report.json"):
-    with open("gitleaks-report.json") as f:
+# After artifact download, file will be inside folder: gitleaks-report/
+gitleaks_path = "gitleaks-report/gitleaks-report.json"
+
+if os.path.isfile(gitleaks_path):
+    with open(gitleaks_path) as f:
         data = json.load(f)
         for item in data:
             finding = {
@@ -48,39 +51,45 @@ if os.path.exists("gitleaks-report.json"):
 
 
 # 🔍 Process CodeQL SARIF
-for sarif_file in glob.glob("**/*.sarif", recursive=True):
-    with open(sarif_file) as f:
-        sarif = json.load(f)
+# Artifacts are downloaded into folder: codeql-report/
+for sarif_file in glob.glob("codeql-report/**/*.sarif", recursive=True):
 
-        for run in sarif.get("runs", []):
-            for result in run.get("results", []):
-                sev = normalize_severity(result.get("level"))
+    if os.path.isfile(sarif_file):   # ✅ Prevent directory error
+        with open(sarif_file) as f:
+            sarif = json.load(f)
 
-                finding = {
-                    "tool": "codeql",
-                    "category": "sast",
-                    "severity": sev,
-                    "file": result.get("locations", [{}])[0]
-                            .get("physicalLocation", {})
-                            .get("artifactLocation", {})
-                            .get("uri"),
-                    "line": result.get("locations", [{}])[0]
-                            .get("physicalLocation", {})
-                            .get("region", {})
-                            .get("startLine"),
-                    "description": result.get("message", {}).get("text")
-                }
+            for run in sarif.get("runs", []):
+                for result in run.get("results", []):
+                    sev = normalize_severity(result.get("level"))
 
-                final_report["findings"].append(finding)
+                    finding = {
+                        "tool": "codeql",
+                        "category": "sast",
+                        "severity": sev,
+                        "file": result.get("locations", [{}])[0]
+                                .get("physicalLocation", {})
+                                .get("artifactLocation", {})
+                                .get("uri"),
+                        "line": result.get("locations", [{}])[0]
+                                .get("physicalLocation", {})
+                                .get("region", {})
+                                .get("startLine"),
+                        "description": result.get("message", {}).get("text")
+                    }
+
+                    final_report["findings"].append(finding)
 
 
 # 📊 Calculate Summary
 for f in final_report["findings"]:
     sev = f["severity"].lower()
-    final_report["scan_summary"][sev] += 1
+    if sev in final_report["scan_summary"]:
+        final_report["scan_summary"][sev] += 1
 
 final_report["scan_summary"]["total"] = len(final_report["findings"])
 
+
+# 💾 Write Final Report
 with open("final-security-report.json", "w") as f:
     json.dump(final_report, f, indent=2)
 

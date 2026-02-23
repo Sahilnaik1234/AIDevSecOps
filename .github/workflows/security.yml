@@ -26,7 +26,7 @@ jobs:
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         with:
-          args: detect --report-format=json --report-path=gitleaks-report.json --exit-code 1
+          args: detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code 1
 
       - name: Upload Gitleaks Report
         uses: actions/upload-artifact@v4
