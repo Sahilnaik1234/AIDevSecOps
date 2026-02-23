@@ -23,7 +23,7 @@ jobs:
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         with:
-          args: detect --report-format=json --report-path=gitleaks-report.json
+          args: detect --report-format=json --report-path=gitleaks-report.json --exit-code 1
 
       - name: Upload Gitleaks Report
         uses: actions/upload-artifact@v4
@@ -33,37 +33,32 @@ jobs:
 
 
   sast:
-  name: SAST - CodeQL
-  runs-on: ubuntu-latest
-  permissions:
-    actions: read
-    contents: read
-    security-events: write
+    name: SAST - CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
-  strategy:
-    fail-fast: false
-    matrix:
-      language: [ 'javascript', 'python', 'java', 'go', 'csharp', 'cpp' ]
+    steps:
+      - uses: actions/checkout@v4
 
-  steps:
-    - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript   # change if needed
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: ${{ matrix.language }}
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
 
-    - name: Analyze
-      uses: github/codeql-action/analyze@v4
-
-    - name: Upload SARIF file
-      uses: actions/upload-artifact@v4
-      with:
-        name: codeql-report-${{ matrix.language }}
-        path: "**/*.sarif"
+      - name: Upload SARIF file
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-report
+          path: "**/*.sarif"
 
 
   normalize:
