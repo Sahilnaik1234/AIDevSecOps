@@ -33,32 +33,37 @@ jobs:
 
 
   sast:
-    name: SAST - CodeQL (Auto Detect)
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
+  name: SAST - CodeQL
+  runs-on: ubuntu-latest
+  permissions:
+    actions: read
+    contents: read
+    security-events: write
 
-    steps:
-      - uses: actions/checkout@v4
+  strategy:
+    fail-fast: false
+    matrix:
+      language: [ 'javascript', 'python', 'java', 'go', 'csharp', 'cpp' ]
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: auto
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
 
-      - name: Analyze
-        uses: github/codeql-action/analyze@v3
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v4
 
-      - name: Upload SARIF file
-        uses: actions/upload-artifact@v4
-        with:
-          name: codeql-report
-          path: "**/*.sarif"
+    - name: Analyze
+      uses: github/codeql-action/analyze@v4
+
+    - name: Upload SARIF file
+      uses: actions/upload-artifact@v4
+      with:
+        name: codeql-report-${{ matrix.language }}
+        path: "**/*.sarif"
 
 
   normalize:
