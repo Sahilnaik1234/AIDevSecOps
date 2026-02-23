@@ -35,83 +35,83 @@ jobs:
           path: gitleaks-report.json
 
 
-  # -------------------------
-  # SAST - CODEQL (ALL LANGUAGES)
+   # -------------------------
+  # SAST - CODEQL (DYNAMIC)
   # -------------------------
   sast:
-  name: SAST - CodeQL (Dynamic)
-  runs-on: ubuntu-latest
+    name: SAST - CodeQL (Dynamic)
+    runs-on: ubuntu-latest
 
-  permissions:
-    actions: read
-    contents: read
-    security-events: write
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
-  steps:
-    - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Detect Languages
-      id: detect
-      run: |
-        LANGS=""
+      - name: Detect Languages
+        id: detect
+        run: |
+          LANGS=""
 
-        if git ls-files '*.py' | grep -q .; then
-          LANGS="$LANGS,python"
-        fi
+          if git ls-files '*.py' | grep -q .; then
+            LANGS="$LANGS,python"
+          fi
 
-        if git ls-files '*.js' '*.ts' | grep -q .; then
-          LANGS="$LANGS,javascript"
-        fi
+          if git ls-files '*.js' '*.ts' | grep -q .; then
+            LANGS="$LANGS,javascript"
+          fi
 
-        if git ls-files '*.java' | grep -q .; then
-          LANGS="$LANGS,java"
-        fi
+          if git ls-files '*.java' | grep -q .; then
+            LANGS="$LANGS,java"
+          fi
 
-        if git ls-files '*.go' | grep -q .; then
-          LANGS="$LANGS,go"
-        fi
+          if git ls-files '*.go' | grep -q .; then
+            LANGS="$LANGS,go"
+          fi
 
-        if git ls-files '*.cs' | grep -q .; then
-          LANGS="$LANGS,csharp"
-        fi
+          if git ls-files '*.cs' | grep -q .; then
+            LANGS="$LANGS,csharp"
+          fi
 
-        if git ls-files '*.cpp' '*.cc' '*.cxx' | grep -q .; then
-          LANGS="$LANGS,cpp"
-        fi
+          if git ls-files '*.cpp' '*.cc' '*.cxx' | grep -q .; then
+            LANGS="$LANGS,cpp"
+          fi
 
-        if git ls-files '*.rb' | grep -q .; then
-          LANGS="$LANGS,ruby"
-        fi
+          if git ls-files '*.rb' | grep -q .; then
+            LANGS="$LANGS,ruby"
+          fi
 
-        LANGS=$(echo $LANGS | sed 's/^,//')
+          LANGS=$(echo $LANGS | sed 's/^,//')
 
-        echo "Detected languages: $LANGS"
-        echo "languages=$LANGS" >> $GITHUB_OUTPUT
+          echo "Detected languages: $LANGS"
+          echo "languages=$LANGS" >> $GITHUB_OUTPUT
 
-    - name: Initialize CodeQL
-      if: steps.detect.outputs.languages != ''
-      uses: github/codeql-action/init@v4
-      with:
-        languages: ${{ steps.detect.outputs.languages }}
+      - name: Initialize CodeQL
+        if: steps.detect.outputs.languages != ''
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ steps.detect.outputs.languages }}
 
-    - name: Autobuild
-      if: steps.detect.outputs.languages != ''
-      uses: github/codeql-action/autobuild@v4
+      - name: Autobuild
+        if: steps.detect.outputs.languages != ''
+        uses: github/codeql-action/autobuild@v4
 
-    - name: Analyze
-      if: steps.detect.outputs.languages != ''
-      uses: github/codeql-action/analyze@v4
+      - name: Analyze
+        if: steps.detect.outputs.languages != ''
+        uses: github/codeql-action/analyze@v4
 
-    - name: Upload SARIF
-      if: steps.detect.outputs.languages != ''
-      uses: actions/upload-artifact@v4
-      with:
-        name: codeql-report
-        path: "**/*.sarif"
+      - name: Upload SARIF
+        if: steps.detect.outputs.languages != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-report
+          path: "**/*.sarif"
 
-    - name: Skip SAST (No supported language found)
-      if: steps.detect.outputs.languages == ''
-      run: echo "No supported languages detected. Skipping CodeQL."
+      - name: Skip SAST (No supported language found)
+        if: steps.detect.outputs.languages == ''
+        run: echo "No supported languages detected. Skipping CodeQL."
 
 
   # -------------------------
