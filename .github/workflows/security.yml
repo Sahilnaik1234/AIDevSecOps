@@ -125,7 +125,7 @@ jobs:
       security-events: read
 
     steps:
-       - name: Fetch Code Scanning Alerts
+    - name: Fetch Code Scanning Alerts
     run: |
         gh api \
           repos/${{ github.repository }}/code-scanning/alerts \
