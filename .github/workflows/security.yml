@@ -11,18 +11,24 @@ on:
 jobs:
 
   secret-scan:
-    name: Secret Scan - Gitleaks
-    runs-on: ubuntu-latest
+  name: Secret Scan - Gitleaks
+  runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: detect --redact --verbose
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      with:
+        args: detect --report-format=json --report-path=gitleaks-report.json
+
+    - name: Upload Gitleaks Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: gitleaks-report
+        path: gitleaks-report.json
 
   sast:
     name: SAST - CodeQL (Auto Detect)
@@ -46,8 +52,38 @@ jobs:
       - name: Analyze
         uses: github/codeql-action/analyze@v3
 
+      - name: Upload SARIF file
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-report
+          path: "**/*.sarif"
+
   dependency-scan:
     name: Dependency Scan Info
     runs-on: ubuntu-latest
     steps:
       - run: echo "Dependabot handles dependency scanning separately"
+
+  normalize:
+  runs-on: ubuntu-latest
+  needs: [secret-scan, sast]
+
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Run Normalization Script
+      run: python scripts/normalize.py
+
+    - name: Upload Final Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: final-security-report
+        path: final-security-report.json
