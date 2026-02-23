@@ -48,7 +48,32 @@ if os.path.isfile(gitleaks_path):
                 "description": item.get("Description")
             }
             final_report["findings"].append(finding)
+            
+# 📦 Process Code Scanning Alerts (includes Dependabot)
+dependency_path = "dependency-report/dependency-report.json"
 
+if os.path.isfile(dependency_path):
+    with open(dependency_path) as f:
+        data = json.load(f)
+
+        for alert in data:
+            tool_name = alert.get("tool", {}).get("name", "unknown")
+            severity = alert.get("rule", {}).get("severity", "medium")
+
+            finding = {
+                "tool": tool_name,
+                "category": "dependency",
+                "severity": normalize_severity(severity),
+                "file": alert.get("most_recent_instance", {})
+                              .get("location", {})
+                              .get("path"),
+                "line": alert.get("most_recent_instance", {})
+                              .get("location", {})
+                              .get("start_line"),
+                "description": alert.get("rule", {}).get("description")
+            }
+
+            final_report["findings"].append(finding)
 
 # 🔍 Process CodeQL SARIF
 # Artifacts are downloaded into folder: codeql-report/
@@ -99,7 +124,7 @@ if os.path.isfile(dependency_path):
             }
 
             final_report["findings"].append(finding)
-            
+
 # 📊 Calculate Summary
 for f in final_report["findings"]:
     sev = f["severity"].lower()
