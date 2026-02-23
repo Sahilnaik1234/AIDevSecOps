@@ -132,33 +132,37 @@ jobs:
   # -------------------------
   # DEPENDENCY SCAN - DEPENDABOT
   # -------------------------
+    # -------------------------
+  # DEPENDENCY SCAN - DEPENDABOT
+  # -------------------------
   dependency-scan:
     name: Dependency Scan - Dependabot
     runs-on: ubuntu-latest
 
     permissions:
-    contents: read
-    security-events: read
-    pull-requests: read
+      contents: read
+      security-events: read
+      pull-requests: read
+
     steps:
-    - name: Check Dependabot Alerts
-      run: |
-        echo "Checking Dependabot alerts..."
+      - name: Check Dependabot Alerts
+        run: |
+          echo "Checking Dependabot alerts..."
 
-        ALERT_COUNT=$(gh api \
-          repos/${{ github.repository }}/dependabot/alerts \
-          --jq 'map(select(.state == "open")) | length')
+          ALERT_COUNT=$(gh api \
+            repos/${{ github.repository }}/dependabot/alerts \
+            --jq 'map(select(.state == "open")) | length')
 
-        echo "Open Dependabot alerts: $ALERT_COUNT"
+          echo "Open Dependabot alerts: $ALERT_COUNT"
 
-        if [ "$ALERT_COUNT" -gt 0 ]; then
-          echo "Vulnerable dependencies detected. Failing dependency scan."
-          exit 1
-        else
-          echo "No vulnerable dependencies found."
-        fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if [ "$ALERT_COUNT" -gt 0 ]; then
+            echo "Vulnerable dependencies detected. Failing dependency scan."
+            exit 1
+          else
+            echo "No vulnerable dependencies found."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
   # -------------------------
