@@ -1,1 +1,2 @@
 # Testing security changes
+AWS_SECRET_ACCESS_KEY=AKIA123456789TEST

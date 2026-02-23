@@ -1,8 +1,12 @@
 name: Universal DevSecOps Security Pipeline
-
 on:
   push:
+    branches:
+      - dev
+      - feature/*
   pull_request:
+    branches:
+      - dev
 
 jobs:
 
