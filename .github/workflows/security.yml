@@ -112,14 +112,34 @@ jobs:
         if: steps.detect.outputs.languages == ''
         run: echo "No supported languages detected. Skipping CodeQL."
 
+    # -------------------------
+  # DEPENDENCY SCAN - DEPENDABOT
+  # -------------------------
+  dependency-scan:
+    name: Dependency Scan - Dependabot
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Fetch Dependabot Alerts
+        run: |
+          gh api \
+            repos/${{ github.repository }}/dependabot/alerts \
+            --jq '.' > dependency-report.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Dependency Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-report
+          path: dependency-report.json
   # -------------------------
   # NORMALIZATION JOB
   # -------------------------
   normalize:
     name: Normalize Reports
     runs-on: ubuntu-latest
-    needs: [secret-scan, sast]
+    needs: [secret-scan, sast, dependency-scan]
     if: always()
 
 

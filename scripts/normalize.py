@@ -79,7 +79,27 @@ for sarif_file in glob.glob("codeql-report/**/*.sarif", recursive=True):
 
                     final_report["findings"].append(finding)
 
+# 📦 Process Dependabot Alerts
+dependency_path = "dependency-report/dependency-report.json"
 
+if os.path.isfile(dependency_path):
+    with open(dependency_path) as f:
+        data = json.load(f)
+
+        for alert in data:
+            severity = alert.get("security_advisory", {}).get("severity", "medium")
+
+            finding = {
+                "tool": "dependabot",
+                "category": "dependency",
+                "severity": normalize_severity(severity),
+                "file": alert.get("dependency", {}).get("manifest_path"),
+                "line": "",
+                "description": alert.get("security_advisory", {}).get("summary")
+            }
+
+            final_report["findings"].append(finding)
+            
 # 📊 Calculate Summary
 for f in final_report["findings"]:
     sev = f["severity"].lower()
