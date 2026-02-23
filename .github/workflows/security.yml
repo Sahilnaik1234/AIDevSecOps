@@ -113,28 +113,31 @@ jobs:
         run: echo "No supported languages detected. Skipping CodeQL."
 
     # -------------------------
+   # -------------------------
+  # DEPENDENCY SCAN - DEPENDABOT
+  # -------------------------
   dependency-scan:
     name: Dependency Scan - Dependabot
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-      security-events: read   # 👈 ADD THIS
+      security-events: read
 
     steps:
       - name: Fetch Dependabot Alerts
         run: |
-        gh api \
-        repos/${{ github.repository }}/dependabot/alerts \
-          --jq '.' > dependency-report.json
+          gh api \
+            repos/${{ github.repository }}/dependabot/alerts \
+            --jq '.' > dependency-report.json
         env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Dependency Report
         uses: actions/upload-artifact@v4
         with:
-        name: dependency-report
-        path: dependency-report.json
+          name: dependency-report
+          path: dependency-report.json
   # -------------------------
   # NORMALIZATION JOB
   # -------------------------
