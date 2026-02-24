@@ -4,9 +4,9 @@
 # FAKE SECRETS (FOR TESTING)
 # =========================
 
-AWS_ACCESS_KEY_ID = "AKIA1234567890FAKEKEY"
+AWS_ACCESS_KEY_ID = "AKIA1234567890FAKEKER"
 AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYFAKEKEY"
-API_KEY = "sk_live_1234567890abcdef"
+API_KEY = "sk_live_1234567890abcded"
 DATABASE_PASSWORD = "SuperSecretPassword123!"
 
 # =========================

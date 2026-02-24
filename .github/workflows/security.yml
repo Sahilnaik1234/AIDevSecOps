@@ -108,7 +108,6 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           upload: false
-          checkout_path: ${{ github.workspace }}
 
       - name: Fail if vulnerabilities found (SARIF based)
         if: steps.detect.outputs.languages != ''
