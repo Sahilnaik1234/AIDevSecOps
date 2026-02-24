@@ -21,7 +21,7 @@ def run():
     return "Executed"
 
 # 🚨 SQL Injection
-@app.route("/entity")
+@app.route("/entities")
 def get_user():
     user_id = request.args.get("id")
     conn = sqlite3.connect("users.db")

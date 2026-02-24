@@ -37,7 +37,8 @@ jobs:
 
 
       # -------------------------
-  # SAST - CODEQL (Dynamic + Deterministic)
+    # -------------------------
+  # SAST - CODEQL
   # -------------------------
   sast:
     name: SAST - CodeQL
@@ -46,6 +47,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      actions: read
 
     steps:
       - uses: actions/checkout@v4
@@ -89,12 +91,7 @@ jobs:
           LANGS=$(echo "$LANGS" | sed 's/^,//')
 
           echo "Detected languages: $LANGS"
-
-          if [ -z "$LANGS" ]; then
-            echo "languages=" >> $GITHUB_OUTPUT
-          else
-            echo "languages=$LANGS" >> $GITHUB_OUTPUT
-          fi
+          echo "languages=$LANGS" >> $GITHUB_OUTPUT
 
       # -------------------------
       # Initialize CodeQL
@@ -115,12 +112,15 @@ jobs:
         continue-on-error: true
 
       # -------------------------
-      # Analyze (Local SARIF)
+      # Analyze
       # -------------------------
       - name: Analyze
         if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/analyze@v4
 
+      # -------------------------
+      # Fail if vulnerabilities found
+      # -------------------------
       - name: Fail if vulnerabilities found
         if: steps.detect.outputs.languages != ''
         run: |
@@ -142,11 +142,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # -------------------------
-      # Skip If No Language
+      # Skip if No Language
       # -------------------------
       - name: Skip SAST
         if: steps.detect.outputs.languages == ''
         run: echo "No supported languages detected. Skipping CodeQL."
+
 
   # -------------------------
   # DEPENDENCY SCAN - DEPENDABOT
