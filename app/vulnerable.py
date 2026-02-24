@@ -7,8 +7,6 @@ app = Flask(__name__)
 
 @app.route("/run")
 def run():
-    user_input = request.args.get("cmd")
-
-    subprocess.call(user_input, shell=True)
-
-    return "Executed"
+    cmd = request.args["cmd"]
+    subprocess.call(cmd, shell=True)
+    return "done"
