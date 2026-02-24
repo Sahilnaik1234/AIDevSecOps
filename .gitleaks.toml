@@ -1,0 +1,46 @@
+# .gitleaks.toml — Gitleaks configuration
+#
+# PLUG-AND-PLAY: Tune what Gitleaks scans without touching security.yml
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+
+title = "AIDevSecOps Gitleaks Config"
+
+# ---------------------------------------------------------------
+# EXTEND the default ruleset (recommended: keep all built-in rules)
+# ---------------------------------------------------------------
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------
+# CUSTOM RULES — add project-specific secret patterns
+# ---------------------------------------------------------------
+# Example: detect internal API tokens
+[[rules]]
+id          = "internal-api-token"
+description = "Possible internal API token"
+regex       = '''(?i)(internal[_-]?api[_-]?token|IAT)[_-]?[=:]\s*['\"]?[A-Za-z0-9_\-]{20,}['\"]?'''
+severity    = "high"
+tags        = ["api", "token"]
+
+# ---------------------------------------------------------------
+# ALLOWLISTS — whitelist known false-positives
+# ---------------------------------------------------------------
+[allowlist]
+description = "Global allowlist"
+
+# Ignore test fixture files
+paths = [
+  "tests/fixtures/.*",
+  ".*\\.example",
+  ".*\\.sample",
+]
+
+# Ignore specific commit SHAs (useful after a historical leak is remediated)
+# commits = ["abc123def456"]
+
+# Ignore regex patterns that are known false positives
+regexes = [
+  # Example: ignore placeholder tokens in docs
+  '''YOUR[_-]?API[_-]?KEY[_-]?HERE''',
+  '''REPLACE[_-]?ME''',
+]

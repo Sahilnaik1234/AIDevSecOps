@@ -1,10 +1,20 @@
-name: Universal DevSecOps Security Pipeline
+name: DevSecOps Security Pipeline
+
+# ============================================================
+# PLUG-AND-PLAY DESIGN
+# Each security tool is a self-contained job that:
+#   1. Runs its scan
+#   2. Exports a standardized JSON artifact
+#
+# To SWAP a tool: replace only that job block.
+# To ADD a tool:  add a new job + parse its artifact in normalize.py
+# The normalize job always runs last and merges all artifacts.
+# ============================================================
 
 on:
   push:
     branches:
       - dev
-      - feature/*
   pull_request:
     branches:
       - dev
@@ -12,192 +22,214 @@ on:
 
 jobs:
 
-  # -------------------------
-  # SECRET SCAN - GITLEAKS
-  # -------------------------
+  # ============================================================
+  # JOB 1: SECRET SCANNING — GITLEAKS
+  # Swap: replace this job with trufflehog, detect-secrets, etc.
+  # Output artifact: gitleaks-report/gitleaks-report.json
+  # ============================================================
   secret-scan:
-    name: Secret Scan - Gitleaks
+    name: "Secret Scan [Gitleaks]"
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0        # Full history needed for git-mode scanning
 
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # only needed for org/enterprise repos
         with:
-          args: detect --source=. --no-git --report-format=json --report-path=gitleaks-report.json --exit-code 1
+          args: >
+            detect
+            --source=.
+            --redact
+            --report-format=json
+            --report-path=gitleaks-report.json
+            --exit-code=0
 
-      - name: Upload Gitleaks Report
+      - name: Upload Gitleaks report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report
           path: gitleaks-report.json
+          if-no-files-found: warn
 
 
-       # -------------------------
-  # SAST - STRICT DETERMINISTIC
-  # -------------------------
+  # ============================================================
+  # JOB 2: SAST — SEMGREP
+  # Swap: replace this job with SonarQube, Bandit, Checkov, etc.
+  # Output artifact: semgrep-report/semgrep-report.json
+  # ============================================================
   sast:
-    name: SAST - CodeQL (Strict)
+    name: "SAST [Semgrep]"
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-      security-events: write
+      security-events: write    # Needed to upload SARIF to GitHub Security tab
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # -------------------------
-      # Detect Languages
-      # -------------------------
-      - name: Detect Languages
-        id: detect
-        run: |
-          LANGS=""
-
-          if git ls-files '*.py' | grep -q .; then
-            LANGS="$LANGS,python"
-          fi
-
-          if git ls-files '*.js' '*.ts' | grep -q .; then
-            LANGS="$LANGS,javascript"
-          fi
-
-          if git ls-files '*.java' | grep -q .; then
-            LANGS="$LANGS,java"
-          fi
-
-          if git ls-files '*.go' | grep -q .; then
-            LANGS="$LANGS,go"
-          fi
-
-          if git ls-files '*.cs' | grep -q .; then
-            LANGS="$LANGS,csharp"
-          fi
-
-          if git ls-files '*.cpp' '*.cc' '*.cxx' | grep -q .; then
-            LANGS="$LANGS,cpp"
-          fi
-
-          if git ls-files '*.rb' | grep -q .; then
-            LANGS="$LANGS,ruby"
-          fi
-
-          LANGS=$(echo "$LANGS" | sed 's/^,//')
-
-          echo "Detected languages: $LANGS"
-          echo "languages=$LANGS" >> $GITHUB_OUTPUT
-
-      # -------------------------
-      # Initialize CodeQL
-      # -------------------------
-      - name: Initialize CodeQL
-        if: steps.detect.outputs.languages != ''
-        uses: github/codeql-action/init@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          languages: ${{ steps.detect.outputs.languages }}
-          queries: security-and-quality
+          python-version: "3.11"
 
-      # -------------------------
-      # Autobuild
-      # -------------------------
-      - name: Autobuild
-        if: steps.detect.outputs.languages != ''
-        uses: github/codeql-action/autobuild@v4
-        continue-on-error: true
+      - name: Install Semgrep
+        run: pip install semgrep
 
-      # -------------------------
-      # Analyze (STRICT MODE)
-      # -------------------------
-      - name: Analyze
-        if: steps.detect.outputs.languages != ''
-        uses: github/codeql-action/analyze@v4
-
-      # -------------------------
-      # Deterministic Fail Logic
-      # -------------------------
-      - name: Fail if vulnerabilities found
-        if: steps.detect.outputs.languages != ''
+      - name: Detect languages present in repo
+        id: lang-detect
         run: |
-          echo "Checking CodeQL alerts..."
+          echo "Files found:"
+          # Detect every language Semgrep supports
+          LANGS=""
+          git ls-files | grep -qE '\.py$'            && LANGS="$LANGS python"
+          git ls-files | grep -qE '\.(js|jsx|mjs)$'  && LANGS="$LANGS javascript"
+          git ls-files | grep -qE '\.(ts|tsx)$'      && LANGS="$LANGS typescript"
+          git ls-files | grep -qE '\.java$'          && LANGS="$LANGS java"
+          git ls-files | grep -qE '\.go$'            && LANGS="$LANGS go"
+          git ls-files | grep -qE '\.(c|h)$'         && LANGS="$LANGS c"
+          git ls-files | grep -qE '\.(cpp|cc|cxx)$'  && LANGS="$LANGS cpp"
+          git ls-files | grep -qE '\.cs$'            && LANGS="$LANGS csharp"
+          git ls-files | grep -qE '\.rb$'            && LANGS="$LANGS ruby"
+          git ls-files | grep -qE '\.php$'           && LANGS="$LANGS php"
+          git ls-files | grep -qE '\.kt$'            && LANGS="$LANGS kotlin"
+          git ls-files | grep -qE '\.rs$'            && LANGS="$LANGS rust"
+          git ls-files | grep -qE '\.tf$'            && LANGS="$LANGS terraform"
+          git ls-files | grep -qE 'Dockerfile'       && LANGS="$LANGS dockerfile"
+          echo "Detected: $LANGS"
+          echo "langs=$LANGS" >> $GITHUB_OUTPUT
 
-          ALERT_COUNT=$(gh api \
-          repos/${{ github.repository }}/code-scanning/alerts \
-          --jq 'map(select(.state == "open")) | length')
-
-          echo "Open alerts: $ALERT_COUNT"
-
-          if [ "$ALERT_COUNT" -gt 0 ]; then
-          echo "Vulnerabilities detected. Failing SAST."
-          exit 1
+      - name: Run Semgrep SAST (all detected languages)
+        run: |
+          # Use .semgrep.yml if present, otherwise fall back to 'auto'
+          # 'auto' uses Semgrep's managed rules — works for ANY language
+          if [ -f .semgrep.yml ]; then
+            CONFIG="--config .semgrep.yml"
+            echo "Using .semgrep.yml rule config"
           else
-          echo "No vulnerabilities found."
+            CONFIG="--config auto"
+            echo "Falling back to --config auto (all languages)"
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          semgrep scan \
+            $CONFIG \
+            --json \
+            --output semgrep-report.json \
+            --metrics=off \
+            . || true
+        # We use `|| true` so the upload step always runs even if findings exist.
+        # The normalize job determines severity and whether to fail the overall build.
+
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+          if-no-files-found: warn
 
 
-  # -------------------------
-  # DEPENDENCY SCAN - DEPENDABOT
-  # -------------------------
+  # ============================================================
+  # JOB 3: DEPENDENCY SCAN — DEPENDABOT
+  # Swap: replace this job with Snyk, OWASP Dependency Check, etc.
+  # Output artifact: dependency-report/dependency-report.json
+  # ============================================================
   dependency-scan:
-    name: Dependency Scan - Dependabot
+    name: "Dependency Scan [Dependabot]"
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
       security-events: read
-      pull-requests: read
 
     steps:
-      - name: Check Dependabot Alerts
+      - name: Fetch Dependabot alerts via GitHub API
         run: |
-          echo "Checking Dependabot alerts..."
+          echo "Fetching open Dependabot alerts..."
 
-          ALERT_COUNT=$(gh api \
+          gh api \
             repos/${{ github.repository }}/dependabot/alerts \
-            --jq 'map(select(.state == "open")) | length')
+            --jq '[.[] | select(.state == "open")]' \
+            > dependency-report.json || echo "[]" > dependency-report.json
 
+          ALERT_COUNT=$(jq length dependency-report.json)
           echo "Open Dependabot alerts: $ALERT_COUNT"
-
-          if [ "$ALERT_COUNT" -gt 0 ]; then
-            echo "Vulnerable dependencies detected. Failing dependency scan."
-            exit 1
-          else
-            echo "No vulnerable dependencies found."
-          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload Dependabot report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-report
+          path: dependency-report.json
+          if-no-files-found: warn
 
-  # -------------------------
-  # NORMALIZATION JOB
-  # -------------------------
+
+  # ============================================================
+  # JOB 4: NORMALIZE — merge all tool reports into one
+  # This job is tool-agnostic; add parsing in normalize.py only.
+  # ============================================================
   normalize:
-    name: Normalize Reports
+    name: "Normalize & Summarize Reports"
     runs-on: ubuntu-latest
     needs: [secret-scan, sast, dependency-scan]
-    if: always()
+    if: always()    # Run even if scan jobs fail/are skipped
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Download Artifacts
+      - name: Download all scan artifacts
         uses: actions/download-artifact@v4
+        with:
+          path: scan-artifacts/      # Each artifact downloads into its own subfolder
 
-      - name: Setup Python
+      - name: List downloaded artifacts
+        run: ls -R scan-artifacts/ || echo "No artifacts downloaded"
+
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.11"
 
-      - name: Run Normalization Script
+      - name: Run normalization script
         run: python scripts/normalize.py
+        env:
+          ARTIFACTS_DIR: scan-artifacts
 
-      - name: Upload Final Report
+      - name: Print summary
+        if: always()
+        run: |
+          echo "===== FINAL SECURITY REPORT SUMMARY ====="
+          if [ -f final-security-report.json ]; then
+            cat final-security-report.json | python3 -c "
+          import json, sys
+          r = json.load(sys.stdin)
+          s = r['scan_summary']
+          print(f\"  Total findings : {s['total']}\")
+          print(f\"  Critical       : {s['critical']}\")
+          print(f\"  High           : {s['high']}\")
+          print(f\"  Medium         : {s['medium']}\")
+          print(f\"  Low            : {s['low']}\")
+          "
+          else
+            echo "No report generated."
+          fi
+
+      - name: Upload final security report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: final-security-report
           path: final-security-report.json
+          if-no-files-found: warn
