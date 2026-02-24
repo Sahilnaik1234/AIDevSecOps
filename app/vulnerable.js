@@ -7,9 +7,9 @@
 //   Dependabot     → old packages in package.json
 
 const express = require("express");
-const fs      = require("fs");
-const exec    = require("child_process").exec;
-const app     = express();
+const fs = require("fs");
+const exec = require("child_process").exec;
+const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -17,9 +17,10 @@ app.use(express.urlencoded({ extended: true }));
 // ---------------------------------------------------------------
 // 🔑 GITLEAKS TRIGGER — Hardcoded secrets
 // ---------------------------------------------------------------
-const DB_PASSWORD    = "hardcoded-db-password-123";
-const STRIPE_API_KEY = "sk_live_FAKEKEYFORTESTING1234567890";
-const AWS_KEY        = "AKIAIOSFODNN7EXAMPLE";
+// Hardcoded secrets — test-safe dummy values, still trigger Gitleaks in CI
+const DB_PASSWORD = "db_password=hardcoded-db-password-123!";
+const STRIPE_API_KEY = "stripe_key=sk_test_FAKEKEYFORTESTING1234";
+const AWS_KEY = "AKIA-TEST-DEVSECOPS-FAKEKEYONLY";
 
 // ---------------------------------------------------------------
 // 💉 SEMGREP SAST TRIGGERS

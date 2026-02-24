@@ -22,18 +22,19 @@ app = Flask(__name__)
 # 🔑 GITLEAKS TRIGGERS — Hardcoded secrets
 # ---------------------------------------------------------------
 
-# Hardcoded AWS credentials (triggers Gitleaks)
-AWS_ACCESS_KEY_ID     = "AKIAIOSFODNN7EXAMPLE"
-AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+# Hardcoded AWS credentials — test dummy values, triggers Gitleaks pattern match
+# gitleaks:allow — comment this line out to let Gitleaks fail the CI scan
+AWS_ACCESS_KEY_ID     = "AKIA-TEST-KEY-FOR-DEVSECOPS-SCAN"
+AWS_SECRET_ACCESS_KEY = "test/FakeSecretKey+DevSecOpsDemo/NotReal"
 
-# Hardcoded DB password (triggers Gitleaks)
-DB_PASSWORD = "SuperSecret123!@#"
+# Hardcoded DB password (triggers Gitleaks custom rule)
+DB_PASSWORD = "db_password=SuperSecret123!"
 
 # Hardcoded JWT secret (triggers Gitleaks)
-JWT_SECRET = "my-very-secret-jwt-token-do-not-share"
+JWT_SECRET = "jwt_secret=my-very-secret-jwt-token-do-not-share"
 
-# Hardcoded GitHub token (triggers Gitleaks)
-GITHUB_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyz"
+# Hardcoded internal API token (triggers .gitleaks.toml custom rule)
+INTERNAL_API_TOKEN = "IAT=devSecOpsTestTokenFakeValue12345"
 
 
 # ---------------------------------------------------------------
