@@ -115,9 +115,6 @@ jobs:
       - name: Analyze
         if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/analyze@v4
-        with:
-          upload: false
-          output: results.sarif
 
       # -------------------------
       # Deterministic Fail Logic
@@ -125,25 +122,22 @@ jobs:
       - name: Fail if vulnerabilities found
         if: steps.detect.outputs.languages != ''
         run: |
-          if [ ! -f "results.sarif" ]; then
-            echo "SARIF file not found."
-            exit 1
-          fi
+          echo "Checking CodeQL alerts..."
 
-          COUNT=$(jq '[.runs[].results[]] | length' results.sarif)
+          ALERT_COUNT=$(gh api \
+          repos/${{ github.repository }}/code-scanning/alerts \
+          --jq 'map(select(.state == "open")) | length')
 
-          echo "Total vulnerabilities found: $COUNT"
+          echo "Open alerts: $ALERT_COUNT"
 
-          if [ "$COUNT" -gt 0 ]; then
-            echo "Vulnerabilities detected. Failing SAST."
-            exit 1
+          if [ "$ALERT_COUNT" -gt 0 ]; then
+          echo "Vulnerabilities detected. Failing SAST."
+          exit 1
           else
-            echo "No vulnerabilities found."
+          echo "No vulnerabilities found."
           fi
-
-      - name: Skip SAST
-        if: steps.detect.outputs.languages == ''
-        run: echo "No supported languages detected. Skipping CodeQL."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
   # -------------------------
