@@ -123,13 +123,12 @@ jobs:
         with:
           upload: false
 
-      # -------------------------
-      # Deterministic Failure Logic
-      # -------------------------
-      - name: Fail if vulnerabilities found
+            - name: Fail if vulnerabilities found
         if: steps.detect.outputs.languages != ''
         run: |
-          SARIF_FILE=$(find $RUNNER_TEMP -name "*.sarif" | head -n 1)
+          echo "Searching for SARIF file in workspace..."
+
+          SARIF_FILE=$(find . -name "*.sarif" | head -n 1)
 
           echo "SARIF file: $SARIF_FILE"
 

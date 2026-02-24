@@ -24,7 +24,7 @@ app = Flask(__name__)
 # COMMAND INJECTION
 # =========================
 
-@app.route("/corrects")
+@app.route("/corrupt")
 def run():
     cmd = request.args.get("cmd")
     subprocess.call(cmd, shell=True)  # 🚨 CodeQL should detect
