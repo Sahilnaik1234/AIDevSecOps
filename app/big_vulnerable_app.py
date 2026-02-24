@@ -24,7 +24,7 @@ app = Flask(__name__)
 # COMMAND INJECTION
 # =========================
 
-@app.route("/gun")
+@app.route("/correct")
 def run():
     cmd = request.args.get("cmd")
     subprocess.call(cmd, shell=True)  # 🚨 CodeQL should detect
@@ -34,14 +34,14 @@ def run():
 # SQL INJECTION
 # =========================
 
-@app.route("/user")
+@app.route("/userrs")
 def get_user():
     user_id = request.args.get("id")
 
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
 
-    query = "SELECT * FROM users WHERE id = " + user_id
+    query = "SELECT * FROM userrs WHERE id = " + user_id
     cursor.execute(query)  # 🚨 SQL injection
 
     return "User fetched"
