@@ -148,10 +148,11 @@ def process_semgrep():
     print(f"[Semgrep]      {count} finding(s)")
 
 
-def process_dependabot():
+def process_dependency():
     """
-    Parse Dependabot alerts fetched from GitHub API.
-    Schema: https://docs.github.com/en/rest/dependabot/alerts
+    Parse the pre-normalized dependency report produced by the CI merge step.
+    Format: flat list of finding dicts already structured for the final report.
+    Tools: pip-audit (Python) and npm-audit (Node.js)
     """
     path = os.path.join(ARTIFACTS_DIR, "dependency-report", "dependency-report.json")
     data = load_json(path)
@@ -159,28 +160,23 @@ def process_dependabot():
         return
 
     count = 0
-    for alert in data:
-        advisory  = alert.get("security_advisory", {})
-        vuln      = alert.get("security_vulnerability", {})
-        dep       = alert.get("dependency", {})
-        severity  = advisory.get("severity", "medium")
-
+    for item in data:
         add_finding({
-            "tool":              "dependabot",
-            "category":         "dependency",
-            "severity":         normalize_severity(severity),
-            "rule_id":          advisory.get("ghsa_id", ""),
-            "file":             dep.get("manifest_path", ""),
-            "line":             None,
-            "description":      advisory.get("summary", ""),
-            "package":          dep.get("package", {}).get("name", ""),
-            "vulnerable_range": vuln.get("vulnerable_version_range", ""),
-            "fixed_in":         vuln.get("first_patched_version", {}).get("identifier"),
-            "cve":              advisory.get("cve_id", ""),
+            "tool":        item.get("tool", "dependency-scan"),
+            "category":    "dependency",
+            "severity":    normalize_severity(item.get("severity", "HIGH")),
+            "rule_id":     item.get("cve", ""),
+            "file":        item.get("file", ""),
+            "line":        None,
+            "description": item.get("description", ""),
+            "package":     item.get("package", ""),
+            "version":     item.get("version", ""),
+            "fixed_in":    item.get("fixed_in"),
+            "cve":         item.get("cve"),
         })
         count += 1
 
-    print(f"[Dependabot]   {count} finding(s)")
+    print(f"[Dependency]   {count} finding(s) (pip-audit + npm-audit)")
 
 
 # ---------------------------------------------------------------
@@ -194,7 +190,7 @@ def main():
     # ── Add new tool parsers here ──
     process_gitleaks()
     process_semgrep()
-    process_dependabot()
+    process_dependency()
 
     # Build summary
     summary = final_report["scan_summary"]

@@ -110,24 +110,43 @@ jobs:
 
       - name: Run Semgrep SAST (all detected languages)
         run: |
-          # --config auto  → Semgrep's cloud-managed rules, auto-detects every
-          #                   language found in the repo (Python, JS, Java, Go,
-          #                   Ruby, PHP, C/C++, C#, Kotlin, Rust, Terraform…)
-          # --config .semgrep.yml → loads your custom project-specific rules ON TOP
+          # Use explicit public rule packs — NO token needed, works in any CI.
+          # These are downloaded from the public Semgrep registry.
           #
-          # To SWAP Semgrep: replace this step with your tool of choice.
-          # The only contract: produce semgrep-report.json in the workspace.
+          # To SWAP Semgrep: replace this step; output contract = semgrep-report.json
+          # To ADD rules:    add more --config p/<ruleset> flags below
+
+          # Build config flags based on languages detected above
+          CONFIGS=""
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q python      && CONFIGS="$CONFIGS --config p/python --config p/flask --config p/django"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q javascript  && CONFIGS="$CONFIGS --config p/javascript --config p/nodejs --config p/express"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q typescript  && CONFIGS="$CONFIGS --config p/typescript"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q java        && CONFIGS="$CONFIGS --config p/java --config p/spring"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q go          && CONFIGS="$CONFIGS --config p/golang"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q ruby        && CONFIGS="$CONFIGS --config p/ruby"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q php         && CONFIGS="$CONFIGS --config p/php"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q csharp      && CONFIGS="$CONFIGS --config p/csharp"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q kotlin      && CONFIGS="$CONFIGS --config p/kotlin"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q rust        && CONFIGS="$CONFIGS --config p/rust"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q terraform   && CONFIGS="$CONFIGS --config p/terraform"
+          echo "${{ steps.lang-detect.outputs.langs }}" | grep -q dockerfile  && CONFIGS="$CONFIGS --config p/dockerfile"
+
+          # Always include cross-language security packs
+          CONFIGS="$CONFIGS --config p/owasp-top-ten --config p/security-audit --config p/secrets"
+
+          # Load custom project rules from .semgrep.yml if it has local rules
+          [ -f .semgrep.yml ] && CONFIGS="$CONFIGS --config .semgrep.yml"
+
+          echo "Running semgrep with: $CONFIGS"
 
           semgrep scan \
-            --config auto \
-            --config .semgrep.yml \
+            $CONFIGS \
             --json \
             --output semgrep-report.json \
             --metrics=off \
-            --error \
             . || true
-        # --error  → exit code 1 when findings exist; `|| true` ensures the
-        # upload step always runs. The normalize job owns final pass/fail logic.
+        # `|| true` ensures upload step always runs even on findings
+
 
       - name: Upload Semgrep report
         if: always()
@@ -139,40 +158,124 @@ jobs:
 
 
   # ============================================================
-  # JOB 3: DEPENDENCY SCAN — DEPENDABOT
-  # Swap: replace this job with Snyk, OWASP Dependency Check, etc.
+  # JOB 3: DEPENDENCY SCAN — pip-audit (Python) + npm audit (JS)
+  # Swap: replace steps with Snyk, OWASP Dependency-Check, Trivy, etc.
   # Output artifact: dependency-report/dependency-report.json
   # ============================================================
   dependency-scan:
-    name: "Dependency Scan [Dependabot]"
+    name: "Dependency Scan [pip-audit + npm audit]"
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      security-events: read
-
     steps:
-      - name: Fetch Dependabot alerts via GitHub API
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      # ---- Python dependency scan ----
+      - name: Scan Python dependencies (pip-audit)
         run: |
-          echo "Fetching open Dependabot alerts..."
+          if [ -f requirements.txt ]; then
+            echo "Scanning requirements.txt..."
+            pip-audit -r requirements.txt \
+              --format json \
+              --output pip-audit-report.json || true
+            echo "pip-audit done."
+          else
+            echo "No requirements.txt found, skipping."
+            echo "[]" > pip-audit-report.json
+          fi
 
-          gh api \
-            repos/${{ github.repository }}/dependabot/alerts \
-            --jq '[.[] | select(.state == "open")]' \
-            > dependency-report.json || echo "[]" > dependency-report.json
+      # ---- Node.js dependency scan ----
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-          ALERT_COUNT=$(jq length dependency-report.json)
-          echo "Open Dependabot alerts: $ALERT_COUNT"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Scan Node.js dependencies (npm audit)
+        run: |
+          if [ -f package.json ]; then
+            echo "Scanning package.json..."
+            npm install --package-lock-only --ignore-scripts 2>/dev/null || true
+            npm audit --json > npm-audit-report.json || true
+            echo "npm audit done."
+          else
+            echo "No package.json found, skipping."
+            echo '{"vulnerabilities":{}}' > npm-audit-report.json
+          fi
 
-      - name: Upload Dependabot report
+      # ---- Merge into single dependency-report.json for normalize.py ----
+      - name: Merge dependency reports
+        run: |
+          python3 - <<'EOF'
+          import json, os
+
+          findings = []
+
+          # Parse pip-audit output
+          pip_path = "pip-audit-report.json"
+          if os.path.isfile(pip_path):
+              with open(pip_path) as f:
+                  data = json.load(f)
+              # pip-audit format: list of {name, version, vulns: [{id, fix_versions, description}]}
+              for pkg in data:
+                  for v in pkg.get("vulns", []):
+                      findings.append({
+                          "tool": "pip-audit",
+                          "category": "dependency",
+                          "severity": "HIGH",
+                          "package": pkg.get("name"),
+                          "version": pkg.get("version"),
+                          "cve": v.get("id"),
+                          "description": v.get("description", ""),
+                          "fixed_in": ", ".join(v.get("fix_versions", [])),
+                          "file": "requirements.txt",
+                      })
+
+          # Parse npm audit output
+          npm_path = "npm-audit-report.json"
+          if os.path.isfile(npm_path):
+              with open(npm_path) as f:
+                  data = json.load(f)
+              vulns = data.get("vulnerabilities", {})
+              for pkg_name, info in vulns.items():
+                  sev = info.get("severity", "moderate")
+                  severity_map = {"critical": "CRITICAL", "high": "HIGH",
+                                  "moderate": "MEDIUM", "low": "LOW", "info": "INFO"}
+                  for via in info.get("via", []):
+                      if isinstance(via, dict):
+                          findings.append({
+                              "tool": "npm-audit",
+                              "category": "dependency",
+                              "severity": severity_map.get(sev, "MEDIUM"),
+                              "package": pkg_name,
+                              "version": info.get("range", ""),
+                              "cve": via.get("cve", [None])[0] if via.get("cve") else None,
+                              "description": via.get("title", ""),
+                              "fixed_in": info.get("fixAvailable", {}).get("version") if isinstance(info.get("fixAvailable"), dict) else None,
+                              "file": "package.json",
+                          })
+
+          with open("dependency-report.json", "w") as f:
+              json.dump(findings, f, indent=2)
+
+          print(f"Dependency report: {len(findings)} finding(s)")
+          EOF
+
+      - name: Upload dependency report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dependency-report
           path: dependency-report.json
           if-no-files-found: warn
+
 
 
   # ============================================================
