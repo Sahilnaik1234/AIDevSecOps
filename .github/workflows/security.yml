@@ -117,27 +117,22 @@ jobs:
       # -------------------------
       # Analyze (Local SARIF)
       # -------------------------
-      - name: Analyze
+      - name: Analyze (Generate SARIF locally)
         if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/analyze@v4
         with:
           upload: false
+          output: codeql-results.sarif
 
       - name: Fail if vulnerabilities found
         if: steps.detect.outputs.languages != ''
         run: |
-          echo "Searching for SARIF file in workspace..."
-
-          SARIF_FILE=$(find . -name "*.sarif" | head -n 1)
-
-          echo "SARIF file: $SARIF_FILE"
-
-          if [ -z "$SARIF_FILE" ]; then
+          if [ ! -f "codeql-results.sarif" ]; then
             echo "No SARIF file generated."
             exit 1
           fi
 
-          COUNT=$(jq '[.runs[].results[]] | length' "$SARIF_FILE")
+          COUNT=$(jq '[.runs[].results[]] | length' codeql-results.sarif)
 
           echo "Total vulnerabilities found: $COUNT"
 
