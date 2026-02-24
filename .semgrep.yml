@@ -1,84 +1,30 @@
-# .semgrep.yml — Semgrep rule configuration
+# .semgrep.yml — Custom Semgrep Rules (OPTIONAL)
 #
-# PLUG-AND-PLAY: Edit rule packs here without touching security.yml
+# This file defines ADDITIONAL project-specific rules on top of
+# the auto-detected rules run in security.yml via `--config auto`.
 #
-# This config covers ALL major languages automatically.
-# Semgrep will only apply rules relevant to files it finds in the repo.
+# `--config auto` already covers ALL languages automatically.
+# Add custom rules here ONLY when you need project-specific checks.
 #
-# Rule pack reference: https://semgrep.dev/r
+# Format reference: https://semgrep.dev/docs/writing-rules/rule-syntax/
 # ---------------------------------------------------------------
 
-rules: []   # Local custom rules go here (see examples below)
+rules:
+  # Example: catch any hardcoded "TODO: fix security" comments
+  - id: no-security-todo
+    patterns:
+      - pattern-regex: "(?i)TODO.*security.*fix"
+    message: "Unresolved security TODO found: $0"
+    languages: [python, javascript, typescript, java, go, ruby, php, c, cpp]
+    severity: WARNING
 
-# ---------------------------------------------------------------
-# UNIVERSAL RULE PACKS
-# Applied regardless of language — covers all code
-# ---------------------------------------------------------------
-extends:
-  # === Cross-language / Security Focused ===
-  - p/default             # Semgrep's curated default rules (all languages)
-  - p/owasp-top-ten       # OWASP Top 10 (multi-language coverage)
-  - p/security-audit      # Broad security audit rules
-  - p/secrets             # Hardcoded secrets (supplements Gitleaks)
-  - p/cwe-top-25          # MITRE CWE Top 25 most dangerous weaknesses
-
-  # === Python ===
-  - p/python
-  - p/flask
-  - p/django
-
-  # === JavaScript / TypeScript ===
-  - p/javascript
-  - p/typescript
-  - p/nodejs
-  - p/react
-  - p/express
-
-  # === Java ===
-  - p/java
-  - p/spring
-
-  # === Go ===
-  - p/golang
-
-  # === Ruby ===
-  - p/ruby
-  - p/rails
-
-  # === PHP ===
-  - p/php
-
-  # === C / C++ ===
-  - p/c
-  - p/cpp
-
-  # === C# / .NET ===
-  - p/csharp
-
-  # === Kotlin ===
-  - p/kotlin
-
-  # === Rust ===
-  - p/rust
-
-  # === Terraform / Infrastructure-as-Code ===
-  - p/terraform
-
-  # === Docker ===
-  - p/dockerfile
-
-  # === Generic / Config / Secrets ===
-  - p/generic
-
-
-# ---------------------------------------------------------------
-# OPTIONAL: Custom project-specific rules
-# Uncomment and fill in to add your own rules without modifying
-# security.yml or buying a Semgrep license.
-# ---------------------------------------------------------------
-# - id: no-hardcoded-env
-#   patterns:
-#     - pattern: $VAR = "..."
-#   message: "Possible hardcoded value in $VAR"
-#   languages: [python, javascript, java, go]
-#   severity: WARNING
+  # Example: disallow use of MD5 for hashing across all languages
+  - id: no-md5-hashing
+    patterns:
+      - pattern-regex: "md5|MD5"
+    message: "MD5 is cryptographically broken. Use SHA-256 or bcrypt."
+    languages: [python, javascript, typescript, java, go]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-328"
+      owasp: "A02:2021"

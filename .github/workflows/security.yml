@@ -110,24 +110,24 @@ jobs:
 
       - name: Run Semgrep SAST (all detected languages)
         run: |
-          # Use .semgrep.yml if present, otherwise fall back to 'auto'
-          # 'auto' uses Semgrep's managed rules — works for ANY language
-          if [ -f .semgrep.yml ]; then
-            CONFIG="--config .semgrep.yml"
-            echo "Using .semgrep.yml rule config"
-          else
-            CONFIG="--config auto"
-            echo "Falling back to --config auto (all languages)"
-          fi
+          # --config auto  → Semgrep's cloud-managed rules, auto-detects every
+          #                   language found in the repo (Python, JS, Java, Go,
+          #                   Ruby, PHP, C/C++, C#, Kotlin, Rust, Terraform…)
+          # --config .semgrep.yml → loads your custom project-specific rules ON TOP
+          #
+          # To SWAP Semgrep: replace this step with your tool of choice.
+          # The only contract: produce semgrep-report.json in the workspace.
 
           semgrep scan \
-            $CONFIG \
+            --config auto \
+            --config .semgrep.yml \
             --json \
             --output semgrep-report.json \
             --metrics=off \
+            --error \
             . || true
-        # We use `|| true` so the upload step always runs even if findings exist.
-        # The normalize job determines severity and whether to fail the overall build.
+        # --error  → exit code 1 when findings exist; `|| true` ensures the
+        # upload step always runs. The normalize job owns final pass/fail logic.
 
       - name: Upload Semgrep report
         if: always()
