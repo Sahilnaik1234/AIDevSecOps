@@ -36,18 +36,16 @@ jobs:
           path: gitleaks-report.json
 
 
-      # -------------------------
-    # -------------------------
-  # SAST - CODEQL
+       # -------------------------
+  # SAST - STRICT DETERMINISTIC
   # -------------------------
   sast:
-    name: SAST - CodeQL
+    name: SAST - CodeQL (Strict)
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
       security-events: write
-      actions: read
 
     steps:
       - uses: actions/checkout@v4
@@ -112,38 +110,37 @@ jobs:
         continue-on-error: true
 
       # -------------------------
-      # Analyze
+      # Analyze (STRICT MODE)
       # -------------------------
       - name: Analyze
         if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/analyze@v4
+        with:
+          upload: false
+          output: results.sarif
 
       # -------------------------
-      # Fail if vulnerabilities found
+      # Deterministic Fail Logic
       # -------------------------
       - name: Fail if vulnerabilities found
         if: steps.detect.outputs.languages != ''
         run: |
-          echo "Checking CodeQL alerts..."
+          if [ ! -f "results.sarif" ]; then
+            echo "SARIF file not found."
+            exit 1
+          fi
 
-          ALERT_COUNT=$(gh api \
-            repos/${{ github.repository }}/code-scanning/alerts \
-            --jq 'map(select(.state == "open")) | length')
+          COUNT=$(jq '[.runs[].results[]] | length' results.sarif)
 
-          echo "Open alerts: $ALERT_COUNT"
+          echo "Total vulnerabilities found: $COUNT"
 
-          if [ "$ALERT_COUNT" -gt 0 ]; then
+          if [ "$COUNT" -gt 0 ]; then
             echo "Vulnerabilities detected. Failing SAST."
             exit 1
           else
             echo "No vulnerabilities found."
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # -------------------------
-      # Skip if No Language
-      # -------------------------
       - name: Skip SAST
         if: steps.detect.outputs.languages == ''
         run: echo "No supported languages detected. Skipping CodeQL."
