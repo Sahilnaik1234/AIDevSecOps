@@ -7,6 +7,8 @@ app = Flask(__name__)
 
 @app.route("/run")
 def run():
-    cmd = request.args.get("cmd")
-    subprocess.call(cmd, shell=True)   # 🔥 Command Injection vulnerability
-    return "Done"
+    user_input = request.args.get("cmd")
+
+    subprocess.call(user_input, shell=True)
+
+    return "Executed"
