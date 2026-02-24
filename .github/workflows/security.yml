@@ -36,7 +36,7 @@ jobs:
           path: gitleaks-report.json
 
 
-   # -------------------------
+     # -------------------------
   # SAST - CODEQL
   # -------------------------
   sast:
@@ -94,19 +94,17 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ steps.detect.outputs.languages }}
-          queries: +security-extended
 
       - name: Autobuild
         if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/autobuild@v4
         continue-on-error: true
 
-      - name: Analyze (Force Full Scan)
+      - name: Analyze (Generate SARIF Locally)
         if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/analyze@v4
         with:
           upload: false
-          category: full-scan
 
       - name: Fail if vulnerabilities found (SARIF based)
         if: steps.detect.outputs.languages != ''
