@@ -15,12 +15,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ---------------------------------------------------------------
-// 🔑 GITLEAKS TRIGGER — Hardcoded secrets
+// 🔑 GITLEAKS TRIGGER — Hardcoded credentials (generic patterns)
 // ---------------------------------------------------------------
-// Hardcoded secrets — test-safe dummy values, still trigger Gitleaks in CI
-const DB_PASSWORD = "db_password=hardcoded-db-password-123!";
-const STRIPE_API_KEY = "stripe_key=sk_test_FAKEKEYFORTESTING1234";
-const AWS_KEY = "AKIA-TEST-DEVSECOPS-FAKEKEYONLY";
+// These trigger Gitleaks generic password/key rules in CI
+const DB_PASSWORD = "password=Hardcoded$ecret!99";
+const PAYMENT_KEY = "api_key=paymentServiceKey_TestValue_9876";
+const INTERNAL_TOKEN = "token=internalSvcToken_DoNotShare_XyZ123";
 
 // ---------------------------------------------------------------
 // 💉 SEMGREP SAST TRIGGERS
