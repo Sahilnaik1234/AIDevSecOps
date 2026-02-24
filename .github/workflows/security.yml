@@ -36,8 +36,8 @@ jobs:
           path: gitleaks-report.json
 
 
-     # -------------------------
-  # SAST - CODEQL (Universal Deterministic)
+      # -------------------------
+  # SAST - CODEQL (Dynamic + Deterministic)
   # -------------------------
   sast:
     name: SAST - CodeQL
@@ -50,22 +50,84 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # -------------------------
+      # Detect Languages
+      # -------------------------
+      - name: Detect Languages
+        id: detect
+        run: |
+          LANGS=""
+
+          if git ls-files '*.py' | grep -q .; then
+            LANGS="$LANGS,python"
+          fi
+
+          if git ls-files '*.js' '*.ts' | grep -q .; then
+            LANGS="$LANGS,javascript"
+          fi
+
+          if git ls-files '*.java' | grep -q .; then
+            LANGS="$LANGS,java"
+          fi
+
+          if git ls-files '*.go' | grep -q .; then
+            LANGS="$LANGS,go"
+          fi
+
+          if git ls-files '*.cs' | grep -q .; then
+            LANGS="$LANGS,csharp"
+          fi
+
+          if git ls-files '*.cpp' '*.cc' '*.cxx' | grep -q .; then
+            LANGS="$LANGS,cpp"
+          fi
+
+          if git ls-files '*.rb' | grep -q .; then
+            LANGS="$LANGS,ruby"
+          fi
+
+          LANGS=$(echo "$LANGS" | sed 's/^,//')
+
+          echo "Detected languages: $LANGS"
+
+          if [ -z "$LANGS" ]; then
+            echo "languages=" >> $GITHUB_OUTPUT
+          else
+            echo "languages=$LANGS" >> $GITHUB_OUTPUT
+          fi
+
+      # -------------------------
+      # Initialize CodeQL
+      # -------------------------
       - name: Initialize CodeQL
+        if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/init@v4
         with:
-          languages: auto
+          languages: ${{ steps.detect.outputs.languages }}
           queries: security-and-quality
 
+      # -------------------------
+      # Autobuild
+      # -------------------------
       - name: Autobuild
+        if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/autobuild@v4
         continue-on-error: true
 
-      - name: Analyze (Generate SARIF locally)
+      # -------------------------
+      # Analyze (Local SARIF)
+      # -------------------------
+      - name: Analyze
+        if: steps.detect.outputs.languages != ''
         uses: github/codeql-action/analyze@v4
         with:
           upload: false
 
+      # -------------------------
+      # Deterministic Failure Logic
+      # -------------------------
       - name: Fail if vulnerabilities found
+        if: steps.detect.outputs.languages != ''
         run: |
           SARIF_FILE=$(find $RUNNER_TEMP -name "*.sarif" | head -n 1)
 
@@ -86,6 +148,13 @@ jobs:
           else
             echo "No vulnerabilities found."
           fi
+
+      # -------------------------
+      # Skip If No Language
+      # -------------------------
+      - name: Skip SAST
+        if: steps.detect.outputs.languages == ''
+        run: echo "No supported languages detected. Skipping CodeQL."
 
   # -------------------------
   # DEPENDENCY SCAN - DEPENDABOT

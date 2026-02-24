@@ -31,7 +31,7 @@ def get_user():
     return "User fetched"
 
 # 🚨 Path Traversal
-@app.route("/read")
+@app.route("/list")
 def read_file():
     filename = request.args.get("file")
     with open(filename, "r") as f:
