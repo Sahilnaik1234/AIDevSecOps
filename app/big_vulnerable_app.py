@@ -5,8 +5,8 @@
 # =========================
 
 AWS_ACCESS_KEY_ID = "AKIA1234567890FAKEKER"
-AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYFAKEKEY"
-API_KEY = "sk_live_1234567890abcded"
+AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYFAKEKEZ"
+API_KEY = "sk_live_1234567890abcdee"
 DATABASE_PASSWORD = "SuperSecretPassword123!"
 
 # =========================
@@ -24,7 +24,7 @@ app = Flask(__name__)
 # COMMAND INJECTION
 # =========================
 
-@app.route("/run")
+@app.route("/fun")
 def run():
     cmd = request.args.get("cmd")
     subprocess.call(cmd, shell=True)  # 🚨 CodeQL should detect
